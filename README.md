@@ -16,7 +16,7 @@ Componentes shadcn/ui: `npx shadcn@latest add button card table ...` (já config
 
 ## Banco de dados (Supabase)
 
-Migrations em `supabase/migrations/` — aplique com `supabase db push` (CLI linkada ao projeto) ou cole no SQL Editor, na ordem.
+Projeto de desenvolvimento: **Pastas-Digitais** (sa-east-1), com as 3 migrations já aplicadas. Migrations em `supabase/migrations/` — aplique com `supabase db push` (CLI linkada ao projeto) ou cole no SQL Editor, na ordem.
 
 | Tabela / objeto | Função |
 |---|---|
