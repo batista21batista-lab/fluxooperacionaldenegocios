@@ -1,8 +1,28 @@
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthProvider } from '@/contexts/AuthContext'
+import ProtectedRoute from '@/components/ProtectedRoute'
+import Layout from '@/components/Layout'
+import Login from '@/pages/Login'
+import Fila from '@/pages/Fila'
+
+const queryClient = new QueryClient()
+
 export default function App() {
   return (
-    <main className="container py-10">
-      <h1 className="text-2xl font-semibold">Pastas Digitais</h1>
-      <p className="text-muted-foreground">Lopes Consultoria de Imóveis</p>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Fila />} />
+              </Route>
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   )
 }
