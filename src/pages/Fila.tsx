@@ -1,6 +1,8 @@
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { ClassificacaoBadge, StatusBadge } from '@/components/Badges'
+import { formatarData } from '@/lib/format'
 
 function prazo(dias: number) {
   if (dias < 0) return <span className="font-medium text-destructive">{Math.abs(dias)}d em atraso</span>
@@ -9,7 +11,7 @@ function prazo(dias: number) {
 }
 
 export default function Fila() {
-  const { data, isLoading, error } = useQuery({
+  const { data: linhas, isLoading, error } = useQuery({
     queryKey: ['fila'],
     queryFn: async () => {
       const { data, error } = await supabase.from('fila_prioridade').select('*').order('posicao')
@@ -17,6 +19,8 @@ export default function Fila() {
       return data
     },
   })
+
+  const data = linhas?.filter((p) => p.pasta_id)
 
   return (
     <div className="space-y-4">
@@ -47,20 +51,24 @@ export default function Fila() {
               {data.map((p) => (
                 <tr key={p.pasta_id} className="border-t">
                   <td className="px-3 py-2 font-semibold">{p.posicao}</td>
-                  <td className="px-3 py-2">{p.cliente_nome}</td>
+                  <td className="px-3 py-2">
+                    <Link to={`/pastas/${p.pasta_id}`} className="font-medium hover:underline">
+                      {p.cliente_nome}
+                    </Link>
+                  </td>
                   <td className="px-3 py-2">{p.empreendimento_nome}</td>
                   <td className="px-3 py-2">{p.corretor_nome}</td>
                   <td className="px-3 py-2">
-                    {p.pontuacao}/{p.pontuacao_maxima} ({Math.round(p.percentual)}%)
+                    {p.pontuacao}/{p.pontuacao_maxima} ({Math.round(p.percentual ?? 0)}%)
                   </td>
                   <td className="px-3 py-2">
-                    <ClassificacaoBadge valor={p.classificacao} />
+                    {p.classificacao && <ClassificacaoBadge valor={p.classificacao} />}
                   </td>
                   <td className="px-3 py-2">
-                    <StatusBadge valor={p.status} />
+                    {p.status && <StatusBadge valor={p.status} />}
                   </td>
                   <td className="px-3 py-2">
-                    {new Date(p.data_entrega + 'T00:00:00').toLocaleDateString('pt-BR')} · {prazo(p.dias_para_entrega)}
+                    {p.data_entrega && formatarData(p.data_entrega)} · {prazo(p.dias_para_entrega ?? 0)}
                   </td>
                 </tr>
               ))}

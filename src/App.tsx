@@ -5,6 +5,9 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import Layout from '@/components/Layout'
 import Login from '@/pages/Login'
 import Fila from '@/pages/Fila'
+import NovaPasta from '@/pages/NovaPasta'
+import PastaDetalhe from '@/pages/PastaDetalhe'
+import Empreendimentos from '@/pages/Empreendimentos'
 
 const queryClient = new QueryClient()
 
@@ -18,6 +21,11 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Fila />} />
+                <Route path="/pastas/nova" element={<NovaPasta />} />
+                <Route path="/pastas/:id" element={<PastaDetalhe />} />
+                <Route element={<ProtectedRoute perfis={['equipe_pastas', 'diretor']} />}>
+                  <Route path="/empreendimentos" element={<Empreendimentos />} />
+                </Route>
               </Route>
             </Route>
           </Routes>

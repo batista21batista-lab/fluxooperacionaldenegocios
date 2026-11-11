@@ -57,7 +57,7 @@ update public.profiles set perfil = 'diretor' where email = 'seu@email.com';
 
 ### Tipos TypeScript
 
-`src/types/database.ts` está escrito à mão. Com o projeto linkado: `npm run db:types`.
+`src/types/database.ts` é gerado pelo Supabase. Para atualizar: `npm run db:types` (CLI linkada).
 
 ## Deploy
 

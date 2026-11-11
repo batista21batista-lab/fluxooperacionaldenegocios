@@ -13,19 +13,28 @@ const rotulo: Record<PerfilAcesso, string> = {
 
 export default function Layout() {
   const { profile, signOut } = useAuth()
+  const revisor = profile?.perfil === 'equipe_pastas' || profile?.perfil === 'diretor'
+  const links = [
+    { to: '/', label: 'Fila de prioridade' },
+    { to: '/pastas/nova', label: 'Nova pasta' },
+    ...(revisor ? [{ to: '/empreendimentos', label: 'Empreendimentos' }] : []),
+  ]
   return (
     <div className="min-h-screen">
       <header className="border-b">
         <div className="container flex h-14 items-center justify-between">
           <nav className="flex items-center gap-6 text-sm">
             <span className="font-semibold">Pastas Digitais</span>
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) => cn('text-muted-foreground', isActive && 'font-medium text-foreground')}
-            >
-              Fila de prioridade
-            </NavLink>
+            {links.map((l) => (
+              <NavLink
+                key={l.to}
+                to={l.to}
+                end
+                className={({ isActive }) => cn('text-muted-foreground', isActive && 'font-medium text-foreground')}
+              >
+                {l.label}
+              </NavLink>
+            ))}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span>
