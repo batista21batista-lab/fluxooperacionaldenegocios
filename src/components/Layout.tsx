@@ -18,6 +18,7 @@ export default function Layout() {
     { to: '/', label: 'Fila de prioridade' },
     { to: '/pastas/nova', label: 'Nova pasta' },
     ...(revisor ? [{ to: '/empreendimentos', label: 'Empreendimentos' }] : []),
+    ...(profile?.perfil === 'diretor' ? [{ to: '/admin', label: 'Administração' }] : []),
   ]
   return (
     <div className="min-h-screen">

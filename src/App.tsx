@@ -8,6 +8,7 @@ import Fila from '@/pages/Fila'
 import NovaPasta from '@/pages/NovaPasta'
 import PastaDetalhe from '@/pages/PastaDetalhe'
 import Empreendimentos from '@/pages/Empreendimentos'
+import Admin from '@/pages/Admin'
 
 const queryClient = new QueryClient()
 
@@ -23,6 +24,9 @@ export default function App() {
                 <Route path="/" element={<Fila />} />
                 <Route path="/pastas/nova" element={<NovaPasta />} />
                 <Route path="/pastas/:id" element={<PastaDetalhe />} />
+                <Route element={<ProtectedRoute perfis={['diretor']} />}>
+                  <Route path="/admin" element={<Admin />} />
+                </Route>
                 <Route element={<ProtectedRoute perfis={['equipe_pastas', 'diretor']} />}>
                   <Route path="/empreendimentos" element={<Empreendimentos />} />
                 </Route>
