@@ -6,8 +6,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { ClassificacaoBadge, StatusBadge } from '@/components/Badges'
 import { cn } from '@/lib/utils'
-import { formatarCpf, formatarData, nomeArquivoSeguro } from '@/lib/format'
-import type { StatusDocumento } from '@/types/database'
+import { formatarCpf, formatarData, nomeArquivoSeguro, soDigitos } from '@/lib/format'
+import { lerDocumento, ROTULOS_OCR } from '@/lib/ocr'
+import type { DadosOcr, StatusDocumento } from '@/types/database'
 
 const rotuloDoc: Record<StatusDocumento | 'ausente', { txt: string; cls: string }> = {
   ausente: { txt: 'Não enviado', cls: 'bg-slate-100 text-slate-600' },
@@ -21,10 +22,11 @@ export default function PastaDetalhe() {
   const { id = '' } = useParams()
   const { profile } = useAuth()
   const qc = useQueryClient()
-  const revisor = profile?.perfil === 'equipe_pastas' || profile?.perfil === 'diretor'
+  const revisor = profile?.perfil === 'equipe_pastas' || profile?.perfil === 'admin'
   const [erro, setErro] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [tipoAlvo, setTipoAlvo] = useState<string | null>(null)
+  const [lendo, setLendo] = useState<string | null>(null)
 
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: ['pasta', id] })
@@ -38,7 +40,7 @@ export default function PastaDetalhe() {
       const [p, tipos, docs, hist] = await Promise.all([
         supabase
           .from('pastas')
-          .select('*, clientes(nome, cpf, telefone, email), empreendimentos(nome)')
+          .select('*, clientes(nome, cpf, telefone, email), empreendimentos(nome), autonomos(apelido)')
           .eq('id', id)
           .single(),
         supabase.from('tipos_documento').select('*').eq('ativo', true).order('ordem'),
@@ -57,19 +59,32 @@ export default function PastaDetalhe() {
       const path = `${id}/${tipoId}/${Date.now()}-${nomeArquivoSeguro(arquivo.name)}`
       const up = await supabase.storage.from('documentos').upload(path, arquivo)
       if (up.error) throw up.error
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('documentos')
         .upsert(
           { pasta_id: id, tipo_documento_id: tipoId, status: 'enviado', arquivo_path: path },
           { onConflict: 'pasta_id,tipo_documento_id' },
         )
+        .select('id')
+        .single()
       if (error) throw error
+      return data.id
     },
-    onSuccess: () => {
+    onSuccess: (docId) => {
       setErro(null)
       recarregar()
+      ocr.mutate(docId) // leitura automática logo após o envio
     },
     onError: falha('Falha ao enviar o documento.'),
+  })
+
+  const ocr = useMutation({
+    mutationFn: lerDocumento,
+    onMutate: (docId) => setLendo(docId),
+    onSettled: () => {
+      setLendo(null)
+      recarregar() // sucesso ou erro ficam gravados no documento
+    },
   })
 
   const revisar = useMutation({
@@ -128,6 +143,7 @@ export default function PastaDetalhe() {
           <h1 className="text-2xl font-semibold">{cli?.nome}</h1>
           <p className="text-sm text-muted-foreground">
             CPF {cli && formatarCpf(cli.cpf)} · {p.empreendimentos?.nome}
+            {p.autonomos?.apelido && ` · ${p.autonomos.apelido}`}
             {p.unidade && ` · ${p.unidade}`} · Entrega {formatarData(p.data_entrega)}
           </p>
         </div>
@@ -188,8 +204,12 @@ export default function PastaDetalhe() {
             const d = porTipo.get(t.id)
             const st = rotuloDoc[d?.status ?? 'ausente']
             const bloqueado = d?.status === 'aprovado' && !revisor
+            const lido = d?.ocr_status === 'concluido' ? (d.ocr_dados as DadosOcr | null) : null
+            const emLeitura = !!d && (lendo === d.id || (d.ocr_status === 'processando' && lendo === null && ocr.isPending))
+            const cpfDiverge = !!lido?.cpf && !!cli && soDigitos(lido.cpf) !== cli.cpf
             return (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+              <li key={t.id} className="space-y-2 px-4 py-3 text-sm">
+               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium">
                     {t.nome} <span className="text-xs font-normal text-muted-foreground">· {t.peso} pts</span>
@@ -230,7 +250,38 @@ export default function PastaDetalhe() {
                       </Button>
                     </>
                   )}
+                  {d?.arquivo_path && !emLeitura && (
+                    <Button variant="ghost" size="sm" onClick={() => ocr.mutate(d.id)} disabled={ocr.isPending}>
+                      {d.ocr_status ? 'Ler de novo' : 'Ler documento'}
+                    </Button>
+                  )}
                 </div>
+               </div>
+                {emLeitura && <p className="text-xs text-muted-foreground">Lendo o documento…</p>}
+                {!emLeitura && d?.ocr_status === 'erro' && (
+                  <p className="text-xs text-amber-700">Leitura automática falhou: {d.ocr_erro}</p>
+                )}
+                {!emLeitura && lido && (
+                  <div className="rounded-md bg-muted/60 p-3 text-xs">
+                    <p className="mb-1 font-medium">
+                      Leitura automática {lido.legivel ? '' : '· documento pouco legível'}
+                    </p>
+                    {cpfDiverge && (
+                      <p className="mb-1 font-medium text-destructive">
+                        CPF lido ({formatarCpf(lido.cpf!)}) é diferente do CPF do cliente.
+                      </p>
+                    )}
+                    <dl className="grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
+                      {ROTULOS_OCR.filter(([k]) => lido[k] !== null && lido[k] !== '').map(([k, rotulo]) => (
+                        <div key={k} className="flex gap-1">
+                          <dt className="text-muted-foreground">{rotulo}:</dt>
+                          <dd>{k === 'renda_mensal' ? Number(lido[k]).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : String(lido[k])}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {lido.observacoes && <p className="mt-1 text-amber-700">Obs.: {lido.observacoes}</p>}
+                  </div>
+                )}
               </li>
             )
           })}

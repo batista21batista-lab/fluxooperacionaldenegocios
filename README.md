@@ -40,20 +40,34 @@ Projeto de desenvolvimento: **Pastas-Digitais** (sa-east-1), com as 3 migrations
 - **Fila:** maior % de documentação primeiro; empate pela menor `data_entrega`; pastas em Cadastro saem da fila. Toda a regra está na view `fila_prioridade`.
 - Tudo é recalculado por triggers ao inserir/alterar/remover documentos.
 
-### Perfis (RLS)
+### Perfis e hierarquia (RLS)
 
 | Perfil | Acesso |
 |---|---|
-| Corretor | Só seus clientes/pastas; envia documentos (não aprova) |
-| Supervisor | Lê as pastas dos corretores da sua equipe |
-| Equipe Pastas | Todas as pastas; aprova/rejeita documentos; move para Cadastro |
-| Diretor | Tudo, incluindo catálogo, parâmetros, usuários e exclusões |
+| Autônomo | Suas pastas e as de quem está abaixo dele na hierarquia; envia documentos (não aprova) |
+| Equipe Pastas | Todas as pastas; aprova/rejeita documentos; move para Cadastro; empreendimentos |
+| Administrador | Tudo, incluindo usuários, importação de autônomos, catálogo e parâmetros |
 
-Novos usuários entram como `corretor`; só o Diretor altera perfil/equipe (protegido por trigger). Para criar o primeiro Diretor:
+A tabela `autonomos` guarda a lista de autônomos **por apelido** (importada da planilha em Administração →
+Autônomos), cada um com seu superintendente, diretor e diretor geral. Cada usuário é vinculado a um apelido
+(`profiles.autonomo_id`) e toda pasta pertence a um autônomo (`pastas.autonomo_id`): quem está acima vê as pastas
+de quem está abaixo. Da planilha só entram apelido, designação, empresa, zona, CRECI e os vínculos.
+
+Novos usuários entram como Autônomo; só o Administrador altera perfil e vínculo (protegido por trigger).
+Para criar o primeiro Administrador:
 
 ```sql
-update public.profiles set perfil = 'diretor' where email = 'seu@email.com';
+update public.profiles set perfil = 'admin' where email = 'seu@email.com';
 ```
+
+### OCR dos documentos
+
+A Edge Function `supabase/functions/ocr-documento` lê imagens/PDFs com Claude e devolve os campos (nome, CPF, RG,
+datas, endereço, renda…). É usada na **Nova pasta** (lê o RG/CNH e preenche nome e CPF) e a cada envio de documento
+no detalhe da pasta (resultado em `documentos.ocr_dados`, gravável só pela função).
+
+Requer o segredo `ANTHROPIC_API_KEY` em Supabase → Edge Functions → Secrets. Sem ele a função responde 503 e o
+restante do sistema continua funcionando. Os documentos são enviados à API da Anthropic para leitura.
 
 ### Tipos TypeScript
 

@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import Usuarios from '@/pages/admin/Usuarios'
-import Equipes from '@/pages/admin/Equipes'
+import Autonomos from '@/pages/admin/Autonomos'
 import Documentos from '@/pages/admin/Documentos'
 
 const abas = [
   { id: 'usuarios', rotulo: 'Usuários', Componente: Usuarios },
-  { id: 'equipes', rotulo: 'Equipes', Componente: Equipes },
+  { id: 'autonomos', rotulo: 'Autônomos', Componente: Autonomos },
   { id: 'documentos', rotulo: 'Documentos e classificação', Componente: Documentos },
 ] as const
 

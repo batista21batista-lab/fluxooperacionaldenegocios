@@ -40,7 +40,7 @@ export default function Fila() {
           <table className="w-full text-sm">
             <thead className="bg-muted text-left text-muted-foreground">
               <tr>
-                {['#', 'Cliente', 'Empreendimento', 'Corretor', 'Documentação', 'Classe', 'Status', 'Entrega'].map((h) => (
+                {['#', 'Cliente', 'Empreendimento', 'Autônomo', 'Super', 'Documentação', 'Classe', 'Status', 'Entrega'].map((h) => (
                   <th key={h} className="px-3 py-2 font-medium">
                     {h}
                   </th>
@@ -57,7 +57,8 @@ export default function Fila() {
                     </Link>
                   </td>
                   <td className="px-3 py-2">{p.empreendimento_nome}</td>
-                  <td className="px-3 py-2">{p.corretor_nome}</td>
+                  <td className="px-3 py-2">{p.autonomo_apelido ?? '—'}</td>
+                  <td className="px-3 py-2">{p.superintendente_apelido ?? '—'}</td>
                   <td className="px-3 py-2">
                     {p.pontuacao}/{p.pontuacao_maxima} ({Math.round(p.percentual ?? 0)}%)
                   </td>

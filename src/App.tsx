@@ -24,10 +24,10 @@ export default function App() {
                 <Route path="/" element={<Fila />} />
                 <Route path="/pastas/nova" element={<NovaPasta />} />
                 <Route path="/pastas/:id" element={<PastaDetalhe />} />
-                <Route element={<ProtectedRoute perfis={['diretor']} />}>
+                <Route element={<ProtectedRoute perfis={['admin']} />}>
                   <Route path="/admin" element={<Admin />} />
                 </Route>
-                <Route element={<ProtectedRoute perfis={['equipe_pastas', 'diretor']} />}>
+                <Route element={<ProtectedRoute perfis={['equipe_pastas', 'admin']} />}>
                   <Route path="/empreendimentos" element={<Empreendimentos />} />
                 </Route>
               </Route>

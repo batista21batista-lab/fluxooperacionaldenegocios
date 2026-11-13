@@ -5,20 +5,21 @@ import { cn } from '@/lib/utils'
 import type { PerfilAcesso } from '@/types/database'
 
 const rotulo: Record<PerfilAcesso, string> = {
-  corretor: 'Corretor',
+  corretor: 'Autônomo',
   equipe_pastas: 'Equipe Pastas',
-  supervisor: 'Supervisor',
-  diretor: 'Diretor',
+  supervisor: 'Autônomo',
+  diretor: 'Autônomo',
+  admin: 'Administrador',
 }
 
 export default function Layout() {
   const { profile, signOut } = useAuth()
-  const revisor = profile?.perfil === 'equipe_pastas' || profile?.perfil === 'diretor'
+  const revisor = profile?.perfil === 'equipe_pastas' || profile?.perfil === 'admin'
   const links = [
     { to: '/', label: 'Fila de prioridade' },
     { to: '/pastas/nova', label: 'Nova pasta' },
     ...(revisor ? [{ to: '/empreendimentos', label: 'Empreendimentos' }] : []),
-    ...(profile?.perfil === 'diretor' ? [{ to: '/admin', label: 'Administração' }] : []),
+    ...(profile?.perfil === 'admin' ? [{ to: '/admin', label: 'Administração' }] : []),
   ]
   return (
     <div className="min-h-screen">
