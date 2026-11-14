@@ -523,6 +523,8 @@ export type Autonomo = Tabelas['autonomos']['Row']
 
 /** Campos devolvidos pela Edge Function ocr-documento. */
 export type DadosOcr = {
+  /** true quando a função está sem chave e devolveu dados fictícios */
+  simulado?: boolean
   tipo_documento: string
   legivel: boolean
   nome: string | null

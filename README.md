@@ -66,8 +66,9 @@ A Edge Function `supabase/functions/ocr-documento` lê imagens/PDFs com Claude e
 datas, endereço, renda…). É usada na **Nova pasta** (lê o RG/CNH e preenche nome e CPF) e a cada envio de documento
 no detalhe da pasta (resultado em `documentos.ocr_dados`, gravável só pela função).
 
-Requer o segredo `ANTHROPIC_API_KEY` em Supabase → Edge Functions → Secrets. Sem ele a função responde 503 e o
-restante do sistema continua funcionando. Os documentos são enviados à API da Anthropic para leitura.
+Usa o segredo `ANTHROPIC_API_KEY` (Supabase → Edge Functions → Secrets). **Sem ele a função roda em modo simulação**:
+devolve dados fictícios marcados como SIMULAÇÃO, só para testar a esteira. Com a chave, a leitura real entra sozinha
+e os documentos passam a ser enviados à API da Anthropic.
 
 ### Tipos TypeScript
 

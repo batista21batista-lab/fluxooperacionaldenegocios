@@ -57,7 +57,9 @@ export default function NovaPasta() {
       if (d.cpf && cpfValido(d.cpf)) setCpf(formatarCpf(d.cpf))
       const faltou = [!d.nome && 'nome', !(d.cpf && cpfValido(d.cpf)) && 'CPF'].filter(Boolean).join(' e ')
       setAvisoOcr(
-        !d.legivel
+        d.simulado
+          ? 'SIMULAÇÃO: o OCR está sem chave, então nome e CPF abaixo são fictícios. Troque pelos dados reais do cliente.'
+          : !d.legivel
           ? `Documento difícil de ler${d.observacoes ? `: ${d.observacoes}` : ''}. Confira os campos.`
           : faltou
             ? `Não foi possível ler ${faltou}. Preencha manualmente.`

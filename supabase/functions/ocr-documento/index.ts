@@ -4,7 +4,9 @@
 //   { documento_id }                 -> lê o arquivo já enviado da pasta e grava o resultado em documentos.ocr_*
 //   { arquivo_base64, media_type }   -> pré-leitura (ex.: RG/CNH antes de criar a pasta); nada é gravado
 //
-// Segredo necessário: ANTHROPIC_API_KEY (Supabase → Edge Functions → Secrets).
+// Segredo: ANTHROPIC_API_KEY (Supabase → Edge Functions → Secrets).
+// Sem o segredo a função roda em MODO SIMULAÇÃO: devolve dados fictícios com simulado=true,
+// só para testar a esteira. Com o segredo, a leitura real entra automaticamente.
 import Anthropic from 'npm:@anthropic-ai/sdk'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
@@ -83,6 +85,25 @@ async function lerComClaude(base64: string, mediaType: string) {
   return JSON.parse(bloco.text)
 }
 
+// --- Modo simulação (sem chave) ---------------------------------------------
+const VAZIO = {
+  rg: null, data_nascimento: null, nome_mae: null, estado_civil: null, endereco: null, cep: null,
+  data_emissao: null, data_validade: null, renda_mensal: null, empregador: null,
+}
+function cpfFicticio(): string {
+  const d = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10))
+  for (const n of [9, 10]) {
+    const soma = d.reduce((acc, v, i) => acc + v * (n + 1 - i), 0)
+    const r = (soma * 10) % 11
+    d.push(r === 10 ? 0 : r)
+  }
+  return d.join('')
+}
+const simular = (nome: string, cpf: string) => ({
+  simulado: true, tipo_documento: 'outro', legivel: true, nome, cpf, ...VAZIO,
+  observacoes: 'SIMULAÇÃO: o documento não foi lido de verdade (OCR sem chave configurada).',
+})
+
 function mensagemDeErro(e: unknown): { status: number; erro: string } {
   if (e instanceof Anthropic.AuthenticationError) return { status: 500, erro: 'Chave da API Anthropic inválida.' }
   if (e instanceof Anthropic.RateLimitError) return { status: 429, erro: 'Muitas leituras ao mesmo tempo. Tente de novo em instantes.' }
@@ -105,9 +126,7 @@ Deno.serve(async (req) => {
   const { data: perfil } = await comoUsuario.rpc('meu_perfil')
   if (!perfil) return json({ erro: 'Usuário inativo.' }, 403)
 
-  if (!Deno.env.get('ANTHROPIC_API_KEY')) {
-    return json({ erro: 'OCR não configurado: defina o segredo ANTHROPIC_API_KEY nas Edge Functions.' }, 503)
-  }
+  const simulacao = !Deno.env.get('ANTHROPIC_API_KEY')
 
   let corpo: { documento_id?: string; arquivo_base64?: string; media_type?: string }
   try { corpo = await req.json() } catch { return json({ erro: 'JSON inválido.' }, 400) }
@@ -120,6 +139,9 @@ Deno.serve(async (req) => {
       return json({ erro: 'Formato não suportado.' }, 400)
     }
     if (b64.length * 0.75 > MAX_BYTES) return json({ erro: 'Arquivo acima de 10 MB.' }, 413)
+    if (simulacao) {
+      return json({ dados: simular(`CLIENTE TESTE ${Math.floor(1000 + Math.random() * 9000)}`, cpfFicticio()) })
+    }
     try {
       return json({ dados: await lerComClaude(b64, mt) })
     } catch (e) {
@@ -130,7 +152,7 @@ Deno.serve(async (req) => {
 
   // --- Modo documento da pasta ---------------------------------------------
   const { data: doc } = await comoUsuario
-    .from('documentos').select('id, arquivo_path').eq('id', corpo.documento_id).maybeSingle()
+    .from('documentos').select('id, arquivo_path, pastas(clientes(nome, cpf))').eq('id', corpo.documento_id).maybeSingle()
   if (!doc?.arquivo_path) return json({ erro: 'Documento não encontrado.' }, 404)
 
   const { data: blob, error: erroDownload } = await comoUsuario.storage.from('documentos').download(doc.arquivo_path)
@@ -141,6 +163,14 @@ Deno.serve(async (req) => {
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const gravar = (campos: Record<string, unknown>) =>
     admin.from('documentos').update(campos).eq('id', doc.id).eq('arquivo_path', doc.arquivo_path)
+
+  if (simulacao) {
+    // Simula uma leitura perfeita: devolve os dados do próprio cliente da pasta.
+    const cli = (doc as unknown as { pastas: { clientes: { nome: string; cpf: string } | null } | null }).pastas?.clientes
+    const dados = simular(cli?.nome ?? 'CLIENTE TESTE', cli?.cpf ?? cpfFicticio())
+    await gravar({ ocr_status: 'concluido', ocr_dados: dados, ocr_erro: null, ocr_em: new Date().toISOString() })
+    return json({ dados })
+  }
 
   await gravar({ ocr_status: 'processando', ocr_erro: null })
   try {

@@ -265,6 +265,11 @@ export default function PastaDetalhe() {
                   <div className="rounded-md bg-muted/60 p-3 text-xs">
                     <p className="mb-1 font-medium">
                       Leitura automática {lido.legivel ? '' : '· documento pouco legível'}
+                      {lido.simulado && (
+                        <span className="ml-2 rounded bg-amber-200 px-1.5 py-0.5 text-amber-900">
+                          SIMULAÇÃO · dados não vieram do documento
+                        </span>
+                      )}
                     </p>
                     {cpfDiverge && (
                       <p className="mb-1 font-medium text-destructive">
