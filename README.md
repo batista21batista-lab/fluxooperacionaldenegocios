@@ -66,6 +66,14 @@ A Edge Function `supabase/functions/ocr-documento` lê imagens/PDFs com Claude e
 datas, endereço, renda…). É usada na **Nova pasta** (lê o RG/CNH e preenche nome e CPF) e a cada envio de documento
 no detalhe da pasta (resultado em `documentos.ocr_dados`, gravável só pela função).
 
+Também lê **fichas cadastrais** (inclusive manuscritas e com várias páginas): além do 1º proponente no nível principal,
+devolve `proponente_2` (cônjuge/2º comprador), `socios`, `representante` (procurador/fiador), `empresa` (PJ),
+`dados_bancarios`, `endereco_detalhado` e `campos_incertos` (campos lidos com dúvida). Formato em `src/types/ocr.ts`.
+
+`src/lib/divergencias.ts` cruza as leituras de uma pasta (`resolverCampos`): escolhe cada campo pela fonte mais
+confiável (documento oficial > ficha > demais; comprovante de residência no endereço; comprovante de renda na renda)
+e lista as divergências entre documentos. Testes: `npm test`.
+
 Usa o segredo `ANTHROPIC_API_KEY` (Supabase → Edge Functions → Secrets). **Sem ele a função roda em modo simulação**:
 devolve dados fictícios marcados como SIMULAÇÃO, só para testar a esteira. Com a chave, a leitura real entra sozinha
 e os documentos passam a ser enviados à API da Anthropic.

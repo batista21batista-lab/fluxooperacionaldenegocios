@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { DadosOcr } from '@/types/database'
+import type { DadosOcr } from '@/types/ocr'
 
 async function invocar(corpo: Record<string, unknown>): Promise<DadosOcr> {
   const { data, error } = await supabase.functions.invoke('ocr-documento', { body: corpo })
@@ -31,6 +31,7 @@ export async function lerArquivo(arquivo: File): Promise<DadosOcr> {
   return invocar({ arquivo_base64: base64, media_type: arquivo.type })
 }
 
+/** Campos de texto do 1º proponente exibidos na leitura. */
 export const ROTULOS_OCR: [keyof DadosOcr, string][] = [
   ['nome', 'Nome'],
   ['cpf', 'CPF'],
@@ -44,4 +45,10 @@ export const ROTULOS_OCR: [keyof DadosOcr, string][] = [
   ['data_validade', 'Validade'],
   ['renda_mensal', 'Renda mensal'],
   ['empregador', 'Empregador'],
+  ['profissao', 'Profissão'],
+  ['nome_pai', 'Pai'],
+  ['naturalidade', 'Naturalidade'],
+  ['regime_casamento', 'Regime de casamento'],
+  ['telefone', 'Telefone'],
+  ['email', 'E-mail'],
 ]

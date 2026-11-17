@@ -520,24 +520,3 @@ export type Pasta = Tabelas['pastas']['Row']
 export type Documento = Tabelas['documentos']['Row']
 export type TipoDocumento = Tabelas['tipos_documento']['Row']
 export type Autonomo = Tabelas['autonomos']['Row']
-
-/** Campos devolvidos pela Edge Function ocr-documento. */
-export type DadosOcr = {
-  /** true quando a função está sem chave e devolveu dados fictícios */
-  simulado?: boolean
-  tipo_documento: string
-  legivel: boolean
-  nome: string | null
-  cpf: string | null
-  rg: string | null
-  data_nascimento: string | null
-  nome_mae: string | null
-  estado_civil: string | null
-  endereco: string | null
-  cep: string | null
-  data_emissao: string | null
-  data_validade: string | null
-  renda_mensal: number | null
-  empregador: string | null
-  observacoes: string | null
-}

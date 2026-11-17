@@ -8,7 +8,8 @@ import { ClassificacaoBadge, StatusBadge } from '@/components/Badges'
 import { cn } from '@/lib/utils'
 import { formatarCpf, formatarData, nomeArquivoSeguro, soDigitos } from '@/lib/format'
 import { lerDocumento, ROTULOS_OCR } from '@/lib/ocr'
-import type { DadosOcr, StatusDocumento } from '@/types/database'
+import type { StatusDocumento } from '@/types/database'
+import type { DadosOcr } from '@/types/ocr'
 
 const rotuloDoc: Record<StatusDocumento | 'ausente', { txt: string; cls: string }> = {
   ausente: { txt: 'Não enviado', cls: 'bg-slate-100 text-slate-600' },
@@ -277,7 +278,7 @@ export default function PastaDetalhe() {
                       </p>
                     )}
                     <dl className="grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
-                      {ROTULOS_OCR.filter(([k]) => lido[k] !== null && lido[k] !== '').map(([k, rotulo]) => (
+                      {ROTULOS_OCR.filter(([k]) => lido[k] != null && lido[k] !== '').map(([k, rotulo]) => (
                         <div key={k} className="flex gap-1">
                           <dt className="text-muted-foreground">{rotulo}:</dt>
                           <dd>{k === 'renda_mensal' ? Number(lido[k]).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : String(lido[k])}</dd>
