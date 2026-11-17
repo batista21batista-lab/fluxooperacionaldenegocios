@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+import type { ReactElement } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { DadosOcr } from '@/types/ocr'
 import DadosConsolidados from './DadosConsolidados'
 
@@ -8,15 +10,17 @@ const base: DadosOcr = {
   estado_civil: null, endereco: null, cep: null, data_emissao: null, data_validade: null, renda_mensal: null,
   empregador: null, observacoes: null,
 }
+const render = (el: ReactElement) =>
+  renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>)
 const texto = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
 
 describe('DadosConsolidados', () => {
   it('não mostra nada sem leituras', () => {
-    expect(renderToStaticMarkup(<DadosConsolidados leituras={[]} segundoComprador={false} />)).toBe('')
+    expect(render(<DadosConsolidados leituras={[]} segundoComprador={false} />)).toBe('')
   })
 
   it('lista divergências entre documentos e contra o cadastro, e avisa do 2º comprador não marcado', () => {
-    const html = renderToStaticMarkup(
+    const html = render(
       <DadosConsolidados
         segundoComprador={false}
         cadastro={{ nome: 'José da Silva', cpf: '12345678909' }}

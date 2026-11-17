@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { cpfValido, formatarCpf, nomeArquivoSeguro, soDigitos } from '@/lib/format'
+import { cpfValido, formatarCpf, formatarTelefone, nomeArquivoSeguro, soDigitos } from '@/lib/format'
 
 const TIPOS_ACEITOS = 'application/pdf,image/jpeg,image/png,image/webp'
 
@@ -57,7 +57,7 @@ export default function NovaPasta() {
     onSuccess: (d) => {
       if (d.nome) setNome(d.nome)
       if (d.cpf && cpfValido(d.cpf)) setCpf(formatarCpf(d.cpf))
-      if (d.telefone) setTelefone(d.telefone)
+      if (d.telefone) setTelefone(formatarTelefone(d.telefone))
       if (d.email) setEmail(d.email)
       const ficha = d.tipo_documento === 'ficha_cadastral'
       setEhFicha(ficha)
@@ -101,7 +101,7 @@ export default function NovaPasta() {
       if (!clienteId) {
         const { data, error } = await supabase
           .from('clientes')
-          .insert({ nome: nome.trim(), cpf: cpfNum, telefone: telefone || null, email: email || null })
+          .insert({ nome: nome.trim(), cpf: cpfNum, telefone: soDigitos(telefone) || null, email: email.trim() || null })
           .select('id')
           .single()
         if (error) {
@@ -213,7 +213,12 @@ export default function NovaPasta() {
         </div>
         <div className="space-y-1">
           <Label>Telefone</Label>
-          <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} inputMode="tel" />
+          <Input
+            value={telefone}
+            onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
+            inputMode="tel"
+            placeholder="(11) 98888-7777"
+          />
         </div>
         <div className="space-y-1 sm:col-span-2">
           <Label>E-mail</Label>

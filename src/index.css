@@ -29,3 +29,8 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground antialiased; }
 }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

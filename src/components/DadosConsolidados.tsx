@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils'
-import { formatarCpf, formatarData, soDigitos } from '@/lib/format'
+import { formatarCep, formatarCpf, formatarData, formatarTelefone, soDigitos } from '@/lib/format'
+import { useConsolidado } from '@/lib/useConsolidado'
 import {
   CAMPOS,
   chaveDeComparacao,
-  resolverCampos,
   type Campo,
   type CampoResolvido,
   type Leitura,
@@ -17,12 +17,13 @@ const ESTADO_CIVIL: Record<string, string> = {
   viuvo: 'Viúvo(a)', uniao_estavel: 'União estável',
 }
 
-function formatar(campo: Campo, valor: string | number): string {
+export function formatar(campo: Campo, valor: string | number): string {
   if (campo === 'cpf') return formatarCpf(String(valor))
   if (campo === 'data_nascimento' && /^\d{4}-\d{2}-\d{2}/.test(String(valor))) return formatarData(String(valor))
   if (campo === 'renda_mensal') return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
   if (campo === 'estado_civil') return ESTADO_CIVIL[String(valor)] ?? String(valor)
-  if (campo === 'cep') return String(valor).replace(/^(\d{5})(\d{3})$/, '$1-$2')
+  if (campo === 'cep') return formatarCep(String(valor))
+  if (campo === 'telefone') return formatarTelefone(String(valor))
   return String(valor)
 }
 
@@ -35,8 +36,8 @@ type Props = {
 
 /** Cruza as leituras de todos os documentos da pasta: valor escolhido por campo, origem e divergências. */
 export default function DadosConsolidados({ leituras, segundoComprador, cadastro }: Props) {
+  const { campos, divergencias } = useConsolidado(leituras)
   if (leituras.length === 0) return null
-  const { campos, divergencias } = resolverCampos(leituras)
 
   // O cadastro digitado também é uma fonte: avisa se os documentos dizem outra coisa.
   const contraCadastro: { rotulo: string; cadastro: string; lido: CampoResolvido }[] = []
@@ -135,7 +136,8 @@ export default function DadosConsolidados({ leituras, segundoComprador, cadastro
         </div>
         <p className="text-xs text-muted-foreground">
           Valor escolhido pela fonte mais confiável: documento oficial antes da ficha; comprovante de residência para o
-          endereço; comprovante de renda para a renda. Confira sempre antes de usar.
+          endereço; comprovante de renda para a renda. Logradouro, bairro, cidade e UF que faltarem vêm da consulta do
+          CEP, que também confere a cidade e a UF lidas. Confira sempre antes de usar.
         </p>
       </div>
     </section>

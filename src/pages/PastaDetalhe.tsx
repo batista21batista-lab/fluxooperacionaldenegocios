@@ -8,9 +8,10 @@ import { ClassificacaoBadge, StatusBadge } from '@/components/Badges'
 import { cn } from '@/lib/utils'
 import { formatarCpf, formatarData, nomeArquivoSeguro, soDigitos } from '@/lib/format'
 import { lerDocumento, ROTULOS_OCR } from '@/lib/ocr'
-import type { Documento, StatusDocumento, TipoDocumento } from '@/types/database'
+import type { StatusDocumento } from '@/types/database'
 import type { DadosOcr } from '@/types/ocr'
-import type { Leitura, Titular } from '@/lib/divergencias'
+import type { Titular } from '@/lib/divergencias'
+import { carregarPasta, chaveExigencia as chave, exigencias, leiturasDaPasta } from '@/lib/pasta'
 import DadosConsolidados, { ROTULO_TITULAR } from '@/components/DadosConsolidados'
 
 const rotuloDoc: Record<StatusDocumento | 'ausente', { txt: string; cls: string }> = {
@@ -39,22 +40,7 @@ export default function PastaDetalhe() {
 
   const pasta = useQuery({
     queryKey: ['pasta', id],
-    queryFn: async () => {
-      const [p, tipos, docs, hist] = await Promise.all([
-        supabase
-          .from('pastas')
-          .select('*, clientes(nome, cpf, telefone, email), empreendimentos(nome), autonomos(apelido)')
-          .eq('id', id)
-          .single(),
-        supabase.from('tipos_documento').select('*').eq('ativo', true).order('ordem'),
-        supabase.from('documentos').select('*').eq('pasta_id', id),
-        supabase.from('pasta_historico').select('*').eq('pasta_id', id).order('created_at', { ascending: false }),
-      ])
-      if (p.error) throw p.error
-      if (tipos.error) throw tipos.error
-      if (docs.error) throw docs.error
-      return { pasta: p.data, tipos: tipos.data, docs: docs.data, historico: hist.data ?? [] }
-    },
+    queryFn: () => carregarPasta(id),
   })
 
   const enviar = useMutation({
@@ -145,23 +131,9 @@ export default function PastaDetalhe() {
 
   const { pasta: p, tipos, docs, historico } = pasta.data
   const cli = p.clientes
-  const chave = (tipoId: string, titular: string) => `${tipoId}|${titular}`
   const porSlot = new Map(docs.map((d) => [chave(d.tipo_documento_id, d.titular), d]))
-  // Um item por exigência: todo tipo para o 1º comprador; os marcados no catálogo também para o 2º.
-  const slots: { t: TipoDocumento; titular: Titular }[] = tipos.flatMap((t) => [
-    { t, titular: 'comprador_1' as const },
-    ...(p.segundo_comprador && t.exige_segundo_comprador ? [{ t, titular: 'comprador_2' as const }] : []),
-  ])
-  const nomeTipo = new Map(tipos.map((t) => [t.id, t.nome]))
-  const visivel = (d: Documento) => d.titular === 'comprador_1' || p.segundo_comprador
-  const leituras: Leitura[] = docs
-    .filter((d) => d.ocr_status === 'concluido' && d.ocr_dados && visivel(d))
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))
-    .map((d) => ({
-      fonte: `${nomeTipo.get(d.tipo_documento_id) ?? 'Documento'}${d.titular === 'comprador_2' ? ' (2º comprador)' : ''}`,
-      titular: d.titular as Titular,
-      dados: d.ocr_dados as unknown as DadosOcr,
-    }))
+  const slots = exigencias(tipos, p.segundo_comprador)
+  const leituras = leiturasDaPasta(docs, tipos, p.segundo_comprador)
 
   function alternarSegundo(valor: boolean) {
     const docsDoSegundo = docs.filter((d) => d.titular === 'comprador_2').length
@@ -188,6 +160,9 @@ export default function PastaDetalhe() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link to={`/pastas/${id}/imprimir`} className="text-sm text-muted-foreground hover:underline">
+            Imprimir ficha
+          </Link>
           <ClassificacaoBadge valor={p.classificacao} />
           <StatusBadge valor={p.status} />
         </div>

@@ -77,7 +77,9 @@ devolve `proponente_2` (cônjuge/2º comprador), `socios`, `representante` (proc
 
 No detalhe da pasta, o painel *Dados lidos dos documentos* (`src/components/DadosConsolidados.tsx`) mostra o
 resultado: valor de cada campo por comprador, de qual documento veio, campos a conferir e divergências (inclusive
-contra o nome/CPF do cadastro). `src/lib/divergencias.ts` cruza as leituras de uma pasta (`resolverCampos`): escolhe cada campo pela fonte mais
+contra o nome/CPF do cadastro). Logradouro, bairro, cidade e UF que faltarem são completados pela consulta do CEP (ViaCEP, `src/lib/cep.ts`),
+que também aponta cidade/UF lidas diferentes das do CEP. A **ficha impressa** da pasta (`/pastas/:id/imprimir`, botão
+*Imprimir ficha*) traz os dados por comprador, divergências, situação de cada documento e pendências, em A4. `src/lib/divergencias.ts` cruza as leituras de uma pasta (`resolverCampos`): escolhe cada campo pela fonte mais
 confiável (documento oficial > ficha > demais; comprovante de residência no endereço; comprovante de renda na renda)
 e lista as divergências entre documentos. Testes: `npm test`.
 

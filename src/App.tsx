@@ -7,6 +7,7 @@ import Login from '@/pages/Login'
 import Fila from '@/pages/Fila'
 import NovaPasta from '@/pages/NovaPasta'
 import PastaDetalhe from '@/pages/PastaDetalhe'
+import FichaPasta from '@/pages/FichaPasta'
 import Empreendimentos from '@/pages/Empreendimentos'
 import Admin from '@/pages/Admin'
 
@@ -20,6 +21,7 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
+              <Route path="/pastas/:id/imprimir" element={<FichaPasta />} />
               <Route element={<Layout />}>
                 <Route path="/" element={<Fila />} />
                 <Route path="/pastas/nova" element={<NovaPasta />} />
