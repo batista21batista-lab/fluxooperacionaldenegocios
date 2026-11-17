@@ -122,6 +122,7 @@ export type Database = {
           revisado_por: string | null
           status: Database['public']['Enums']['status_documento']
           tipo_documento_id: string
+          titular: string
           updated_at: string
         }
         Insert: {
@@ -135,6 +136,7 @@ export type Database = {
           revisado_por?: string | null
           status?: Database['public']['Enums']['status_documento']
           tipo_documento_id: string
+          titular?: string
           updated_at?: string
         }
         Update: {
@@ -148,6 +150,7 @@ export type Database = {
           revisado_por?: string | null
           status?: Database['public']['Enums']['status_documento']
           tipo_documento_id?: string
+          titular?: string
           updated_at?: string
         }
         Relationships: [
@@ -293,6 +296,7 @@ export type Database = {
           percentual: number
           pontuacao: number
           pontuacao_maxima: number
+          segundo_comprador: boolean
           status: Database['public']['Enums']['status_pasta']
           unidade: string | null
           updated_at: string
@@ -310,6 +314,7 @@ export type Database = {
           percentual?: number
           pontuacao?: number
           pontuacao_maxima?: number
+          segundo_comprador?: boolean
           status?: Database['public']['Enums']['status_pasta']
           unidade?: string | null
           updated_at?: string
@@ -327,6 +332,7 @@ export type Database = {
           percentual?: number
           pontuacao?: number
           pontuacao_maxima?: number
+          segundo_comprador?: boolean
           status?: Database['public']['Enums']['status_pasta']
           unidade?: string | null
           updated_at?: string
@@ -423,6 +429,7 @@ export type Database = {
           ativo: boolean
           created_at: string
           descricao: string | null
+          exige_segundo_comprador: boolean
           id: string
           nome: string
           obrigatorio: boolean
@@ -433,6 +440,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           descricao?: string | null
+          exige_segundo_comprador?: boolean
           id?: string
           nome: string
           obrigatorio?: boolean
@@ -443,6 +451,7 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           descricao?: string | null
+          exige_segundo_comprador?: boolean
           id?: string
           nome?: string
           obrigatorio?: boolean

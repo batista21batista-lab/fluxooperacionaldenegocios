@@ -8,8 +8,10 @@ import { ClassificacaoBadge, StatusBadge } from '@/components/Badges'
 import { cn } from '@/lib/utils'
 import { formatarCpf, formatarData, nomeArquivoSeguro, soDigitos } from '@/lib/format'
 import { lerDocumento, ROTULOS_OCR } from '@/lib/ocr'
-import type { StatusDocumento } from '@/types/database'
+import type { Documento, StatusDocumento, TipoDocumento } from '@/types/database'
 import type { DadosOcr } from '@/types/ocr'
+import type { Leitura, Titular } from '@/lib/divergencias'
+import DadosConsolidados, { ROTULO_TITULAR } from '@/components/DadosConsolidados'
 
 const rotuloDoc: Record<StatusDocumento | 'ausente', { txt: string; cls: string }> = {
   ausente: { txt: 'Não enviado', cls: 'bg-slate-100 text-slate-600' },
@@ -26,7 +28,7 @@ export default function PastaDetalhe() {
   const revisor = profile?.perfil === 'equipe_pastas' || profile?.perfil === 'admin'
   const [erro, setErro] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [tipoAlvo, setTipoAlvo] = useState<string | null>(null)
+  const [alvo, setAlvo] = useState<{ tipoId: string; titular: Titular } | null>(null)
   const [lendo, setLendo] = useState<string | null>(null)
 
   const recarregar = () => {
@@ -56,15 +58,15 @@ export default function PastaDetalhe() {
   })
 
   const enviar = useMutation({
-    mutationFn: async ({ tipoId, arquivo }: { tipoId: string; arquivo: File }) => {
+    mutationFn: async ({ tipoId, titular, arquivo }: { tipoId: string; titular: Titular; arquivo: File }) => {
       const path = `${id}/${tipoId}/${Date.now()}-${nomeArquivoSeguro(arquivo.name)}`
       const up = await supabase.storage.from('documentos').upload(path, arquivo)
       if (up.error) throw up.error
       const { data, error } = await supabase
         .from('documentos')
         .upsert(
-          { pasta_id: id, tipo_documento_id: tipoId, status: 'enviado', arquivo_path: path },
-          { onConflict: 'pasta_id,tipo_documento_id' },
+          { pasta_id: id, tipo_documento_id: tipoId, titular, status: 'enviado', arquivo_path: path },
+          { onConflict: 'pasta_id,tipo_documento_id,titular' },
         )
         .select('id')
         .single()
@@ -103,6 +105,18 @@ export default function PastaDetalhe() {
     onError: falha('Falha ao atualizar o documento.'),
   })
 
+  const segundo = useMutation({
+    mutationFn: async (valor: boolean) => {
+      const { error } = await supabase.from('pastas').update({ segundo_comprador: valor }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      setErro(null)
+      recarregar()
+    },
+    onError: falha('Não foi possível alterar o 2º comprador.'),
+  })
+
   const cadastro = useMutation({
     mutationFn: async (voltar: boolean) => {
       const { error } = await supabase.rpc('mover_para_cadastro', { p_pasta: id, p_voltar: voltar })
@@ -131,7 +145,32 @@ export default function PastaDetalhe() {
 
   const { pasta: p, tipos, docs, historico } = pasta.data
   const cli = p.clientes
-  const porTipo = new Map(docs.map((d) => [d.tipo_documento_id, d]))
+  const chave = (tipoId: string, titular: string) => `${tipoId}|${titular}`
+  const porSlot = new Map(docs.map((d) => [chave(d.tipo_documento_id, d.titular), d]))
+  // Um item por exigência: todo tipo para o 1º comprador; os marcados no catálogo também para o 2º.
+  const slots: { t: TipoDocumento; titular: Titular }[] = tipos.flatMap((t) => [
+    { t, titular: 'comprador_1' as const },
+    ...(p.segundo_comprador && t.exige_segundo_comprador ? [{ t, titular: 'comprador_2' as const }] : []),
+  ])
+  const nomeTipo = new Map(tipos.map((t) => [t.id, t.nome]))
+  const visivel = (d: Documento) => d.titular === 'comprador_1' || p.segundo_comprador
+  const leituras: Leitura[] = docs
+    .filter((d) => d.ocr_status === 'concluido' && d.ocr_dados && visivel(d))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .map((d) => ({
+      fonte: `${nomeTipo.get(d.tipo_documento_id) ?? 'Documento'}${d.titular === 'comprador_2' ? ' (2º comprador)' : ''}`,
+      titular: d.titular as Titular,
+      dados: d.ocr_dados as unknown as DadosOcr,
+    }))
+
+  function alternarSegundo(valor: boolean) {
+    const docsDoSegundo = docs.filter((d) => d.titular === 'comprador_2').length
+    if (!valor && docsDoSegundo > 0 &&
+      !window.confirm(`Há ${docsDoSegundo} documento(s) do 2º comprador. Eles ficam guardados, mas deixam de contar na pontuação. Continuar?`)) {
+      return
+    }
+    segundo.mutate(valor)
+  }
 
   return (
     <div className="space-y-6">
@@ -181,7 +220,20 @@ export default function PastaDetalhe() {
         </div>
       )}
 
+      <label className="flex w-fit items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="h-4 w-4"
+          checked={p.segundo_comprador}
+          disabled={segundo.isPending}
+          onChange={(e) => alternarSegundo(e.target.checked)}
+        />
+        Pasta com 2º comprador (cônjuge ou segundo proponente)
+      </label>
+
       {erro && <p className="text-sm text-destructive">{erro}</p>}
+
+      <DadosConsolidados leituras={leituras} segundoComprador={p.segundo_comprador} cadastro={cli} />
 
       <input
         ref={inputRef}
@@ -190,9 +242,9 @@ export default function PastaDetalhe() {
         className="hidden"
         onChange={(e) => {
           const arquivo = e.target.files?.[0]
-          if (arquivo && tipoAlvo) {
+          if (arquivo && alvo) {
             if (arquivo.size > 10 * 1024 * 1024) setErro('Arquivo acima de 10 MB.')
-            else enviar.mutate({ tipoId: tipoAlvo, arquivo })
+            else enviar.mutate({ ...alvo, arquivo })
           }
           e.target.value = ''
         }}
@@ -201,19 +253,22 @@ export default function PastaDetalhe() {
       <section className="overflow-hidden rounded-lg border">
         <h2 className="border-b bg-muted px-4 py-2 text-sm font-medium">Documentos</h2>
         <ul className="divide-y">
-          {tipos.map((t) => {
-            const d = porTipo.get(t.id)
+          {slots.map(({ t, titular }) => {
+            const d = porSlot.get(chave(t.id, titular))
+            const doisTitulares = p.segundo_comprador && t.exige_segundo_comprador
             const st = rotuloDoc[d?.status ?? 'ausente']
             const bloqueado = d?.status === 'aprovado' && !revisor
             const lido = d?.ocr_status === 'concluido' ? (d.ocr_dados as DadosOcr | null) : null
             const emLeitura = !!d && (lendo === d.id || (d.ocr_status === 'processando' && lendo === null && ocr.isPending))
-            const cpfDiverge = !!lido?.cpf && !!cli && soDigitos(lido.cpf) !== cli.cpf
+            const cpfDiverge = titular === 'comprador_1' && !!lido?.cpf && !!cli && soDigitos(lido.cpf) !== cli.cpf
             return (
-              <li key={t.id} className="space-y-2 px-4 py-3 text-sm">
+              <li key={chave(t.id, titular)} className="space-y-2 px-4 py-3 text-sm">
                <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium">
-                    {t.nome} <span className="text-xs font-normal text-muted-foreground">· {t.peso} pts</span>
+                    {t.nome}
+                    {doisTitulares && <span className="font-normal"> · {ROTULO_TITULAR[titular]}</span>}{' '}
+                    <span className="text-xs font-normal text-muted-foreground">· {t.peso} pts</span>
                     {!t.obrigatorio && <span className="ml-1 text-xs font-normal text-muted-foreground">(opcional)</span>}
                   </p>
                   {t.descricao && <p className="text-xs text-muted-foreground">{t.descricao}</p>}
@@ -234,7 +289,7 @@ export default function PastaDetalhe() {
                       size="sm"
                       disabled={enviar.isPending}
                       onClick={() => {
-                        setTipoAlvo(t.id)
+                        setAlvo({ tipoId: t.id, titular })
                         inputRef.current?.click()
                       }}
                     >

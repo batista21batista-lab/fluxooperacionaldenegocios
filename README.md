@@ -35,6 +35,11 @@ Projeto de desenvolvimento: **Pastas-Digitais** (sa-east-1), com as 3 migrations
 ### Regras de negócio
 
 - **Pontuação** = soma dos pesos dos documentos *aprovados*; **percentual** = pontuação ÷ máximo (tipos ativos).
+- **2º comprador:** a pasta pode ser de casal (`pastas.segundo_comprador`). Cada tipo do catálogo diz se também é
+  exigido do 2º comprador (`tipos_documento.exige_segundo_comprador`; de início RG/CNH, CPF, renda e carteira de
+  trabalho) e cada documento tem um `titular` (`comprador_1`/`comprador_2`). Numa pasta de casal, esses tipos contam o
+  peso para cada comprador e precisam estar aprovados para os dois.
+- A **Ficha cadastral** é um tipo obrigatório do catálogo (peso 10); ao ser lida, preenche os dois compradores.
 - **Classificação:** Ouro ≥ 90%, Prata ≥ 60%, Bronze abaixo (editável em `configuracoes`).
 - **Status:** `completa` quando todos os documentos obrigatórios estão aprovados, senão `incompleta`. `cadastro` é a etapa seguinte, definida por Equipe Pastas/Diretor via RPC `mover_para_cadastro` (só pastas completas) e não é sobrescrita pelo recálculo.
 - **Fila:** maior % de documentação primeiro; empate pela menor `data_entrega`; pastas em Cadastro saem da fila. Toda a regra está na view `fila_prioridade`.
@@ -70,7 +75,9 @@ Também lê **fichas cadastrais** (inclusive manuscritas e com várias páginas)
 devolve `proponente_2` (cônjuge/2º comprador), `socios`, `representante` (procurador/fiador), `empresa` (PJ),
 `dados_bancarios`, `endereco_detalhado` e `campos_incertos` (campos lidos com dúvida). Formato em `src/types/ocr.ts`.
 
-`src/lib/divergencias.ts` cruza as leituras de uma pasta (`resolverCampos`): escolhe cada campo pela fonte mais
+No detalhe da pasta, o painel *Dados lidos dos documentos* (`src/components/DadosConsolidados.tsx`) mostra o
+resultado: valor de cada campo por comprador, de qual documento veio, campos a conferir e divergências (inclusive
+contra o nome/CPF do cadastro). `src/lib/divergencias.ts` cruza as leituras de uma pasta (`resolverCampos`): escolhe cada campo pela fonte mais
 confiável (documento oficial > ficha > demais; comprovante de residência no endereço; comprovante de renda na renda)
 e lista as divergências entre documentos. Testes: `npm test`.
 

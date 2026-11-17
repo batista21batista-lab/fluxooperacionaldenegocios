@@ -26,6 +26,7 @@ export default function NovaPasta() {
   const [empId, setEmpId] = useState('')
   const [unidade, setUnidade] = useState('')
   const [entrega, setEntrega] = useState('')
+  const [segundoComprador, setSegundoComprador] = useState(false)
   const [autonomoId, setAutonomoId] = useState(meuAutonomo ?? '')
   const [apelidoDigitado, setApelidoDigitado] = useState('')
   const [erro, setErro] = useState<string | null>(null)
@@ -33,6 +34,7 @@ export default function NovaPasta() {
   // Documento de identificação lido por OCR; depois de criar a pasta ele é anexado a ela.
   const inputRef = useRef<HTMLInputElement>(null)
   const [docId, setDocId] = useState<File | null>(null)
+  const [ehFicha, setEhFicha] = useState(false)
   const [avisoOcr, setAvisoOcr] = useState<string | null>(null)
 
   const { data: emps } = useQuery({
@@ -55,6 +57,12 @@ export default function NovaPasta() {
     onSuccess: (d) => {
       if (d.nome) setNome(d.nome)
       if (d.cpf && cpfValido(d.cpf)) setCpf(formatarCpf(d.cpf))
+      if (d.telefone) setTelefone(d.telefone)
+      if (d.email) setEmail(d.email)
+      const ficha = d.tipo_documento === 'ficha_cadastral'
+      setEhFicha(ficha)
+      const temSegundo = !!(d.proponente_2?.nome || d.proponente_2?.cpf)
+      if (temSegundo) setSegundoComprador(true)
       const faltou = [!d.nome && 'nome', !(d.cpf && cpfValido(d.cpf)) && 'CPF'].filter(Boolean).join(' e ')
       setAvisoOcr(
         d.simulado
@@ -63,7 +71,9 @@ export default function NovaPasta() {
           ? `Documento difícil de ler${d.observacoes ? `: ${d.observacoes}` : ''}. Confira os campos.`
           : faltou
             ? `Não foi possível ler ${faltou}. Preencha manualmente.`
-            : 'Dados lidos do documento. Confira antes de criar a pasta.',
+            : `Dados lidos ${ficha ? 'da ficha cadastral' : 'do documento'}${
+                temSegundo ? ', que traz um 2º comprador (opção marcada abaixo)' : ''
+              }. Confira antes de criar a pasta.`,
       )
     },
     onError: (e: Error) => setAvisoOcr(`${e.message} Preencha manualmente; o arquivo será anexado mesmo assim.`),
@@ -72,6 +82,7 @@ export default function NovaPasta() {
   function escolherDocumento(arquivo: File) {
     if (arquivo.size > 10 * 1024 * 1024) return setAvisoOcr('Arquivo acima de 10 MB.')
     setDocId(arquivo)
+    setEhFicha(false)
     setAvisoOcr(null)
     ocr.mutate(arquivo)
   }
@@ -108,6 +119,7 @@ export default function NovaPasta() {
           autonomo_id: autonomo,
           unidade: unidade.trim() || null,
           data_entrega: entrega,
+          segundo_comprador: segundoComprador,
         })
         .select('id')
         .single()
@@ -117,10 +129,13 @@ export default function NovaPasta() {
         )
       }
 
-      // Anexa o documento lido como "RG ou CNH". Se algo falhar aqui, a pasta já existe:
-      // o usuário reenvia pelo detalhe.
+      // Anexa o documento lido como "Ficha cadastral" ou "RG ou CNH" do 1º comprador. Se algo falhar aqui,
+      // a pasta já existe: o usuário reenvia pelo detalhe.
       if (docId) {
-        const { data: tipo } = await supabase.from('tipos_documento').select('id').ilike('nome', 'RG%').limit(1).maybeSingle()
+        const busca = supabase.from('tipos_documento').select('id').eq('ativo', true)
+        const { data: tipo } = await (ehFicha ? busca.eq('nome', 'Ficha cadastral') : busca.ilike('nome', 'RG%'))
+          .limit(1)
+          .maybeSingle()
         if (tipo) {
           const path = `${pasta.id}/${tipo.id}/${Date.now()}-${nomeArquivoSeguro(docId.name)}`
           const up = await supabase.storage.from('documentos').upload(path, docId)
@@ -161,9 +176,10 @@ export default function NovaPasta() {
       <h1 className="text-2xl font-semibold">Nova pasta</h1>
 
       <section className="space-y-2 rounded-lg border border-dashed p-4">
-        <p className="text-sm font-medium">Comece pelo documento do cliente (RG ou CNH)</p>
+        <p className="text-sm font-medium">Comece pela ficha cadastral ou pelo documento do cliente (RG ou CNH)</p>
         <p className="text-sm text-muted-foreground">
-          Envie uma foto ou PDF: o sistema lê nome e CPF e já anexa o documento à pasta. Você confere antes de criar.
+          Envie uma foto ou PDF: o sistema lê os dados e já anexa o documento à pasta. Se a ficha trouxer um 2º
+          comprador, a pasta já é marcada como de casal. Você confere antes de criar.
         </p>
         <input
           ref={inputRef}
@@ -203,6 +219,15 @@ export default function NovaPasta() {
           <Label>E-mail</Label>
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={segundoComprador}
+            onChange={(e) => setSegundoComprador(e.target.checked)}
+          />
+          Pasta com 2º comprador (cônjuge ou segundo proponente)
+        </label>
       </fieldset>
 
       <fieldset className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2">

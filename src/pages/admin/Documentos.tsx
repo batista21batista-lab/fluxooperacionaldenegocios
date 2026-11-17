@@ -6,7 +6,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { TipoDocumento } from '@/types/database'
 
-type Rascunho = Pick<TipoDocumento, 'nome' | 'descricao' | 'peso' | 'ordem' | 'obrigatorio' | 'ativo'>
+type Rascunho = Pick<
+  TipoDocumento,
+  'nome' | 'descricao' | 'peso' | 'ordem' | 'obrigatorio' | 'exige_segundo_comprador' | 'ativo'
+>
 
 // Após qualquer mudança de pesos/cortes, todas as pastas são recalculadas no banco.
 async function recalcular() {
@@ -90,6 +93,7 @@ function LinhaTipo({
     peso: tipo.peso,
     ordem: tipo.ordem,
     obrigatorio: tipo.obrigatorio,
+    exige_segundo_comprador: tipo.exige_segundo_comprador,
     ativo: tipo.ativo,
   })
   const [salvando, setSalvando] = useState(false)
@@ -130,6 +134,14 @@ function LinhaTipo({
           className="h-4 w-4"
           checked={d.obrigatorio}
           onChange={(e) => setD({ ...d, obrigatorio: e.target.checked })}
+        />
+      </td>
+      <td className="px-3 py-2 text-center">
+        <input
+          type="checkbox"
+          className="h-4 w-4"
+          checked={d.exige_segundo_comprador}
+          onChange={(e) => setD({ ...d, exige_segundo_comprador: e.target.checked })}
         />
       </td>
       <td className="px-3 py-2 text-center">
@@ -222,7 +234,8 @@ export default function Documentos() {
           <p className="text-sm text-muted-foreground">
             O peso é a pontuação do documento. A pasta fica <b>Completa</b> quando todos os obrigatórios ativos estão
             aprovados. Documentos não são excluídos: desative para tirá-los do cálculo (os já enviados são mantidos).
-            Cada alteração recalcula todas as pastas.
+            Em pastas de casal, os marcados em “Também do 2º comprador” são pedidos dos dois compradores e contam o peso
+            para cada um. Cada alteração recalcula todas as pastas.
           </p>
         </div>
         {erro && <p className="text-sm text-destructive">{erro}</p>}
@@ -235,6 +248,7 @@ export default function Documentos() {
                 <th className="px-3 py-2 font-medium">Peso</th>
                 <th className="px-3 py-2 font-medium">Ordem</th>
                 <th className="px-3 py-2 text-center font-medium">Obrigatório</th>
+                <th className="px-3 py-2 text-center font-medium">Também do 2º comprador</th>
                 <th className="px-3 py-2 text-center font-medium">Ativo</th>
                 <th className="px-3 py-2" />
               </tr>
@@ -242,7 +256,7 @@ export default function Documentos() {
             <tbody>
               {tipos.data?.map((t) => (
                 <LinhaTipo
-                  key={`${t.id}-${t.nome}-${t.descricao}-${t.peso}-${t.ordem}-${t.obrigatorio}-${t.ativo}`}
+                  key={`${t.id}-${t.nome}-${t.descricao}-${t.peso}-${t.ordem}-${t.obrigatorio}-${t.exige_segundo_comprador}-${t.ativo}`}
                   tipo={t}
                   aoSalvar={salvarTipo}
                 />
